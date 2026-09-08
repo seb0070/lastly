@@ -6,6 +6,9 @@ FROM node:20-slim AS builder
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /repo
 
+# pnpm prune 이 확인 프롬프트를 띄운다. 빌드에는 입력 장치가 없어 멈춰버린다.
+ENV CI=true
+
 # 의존성 목록만 먼저 복사해 캐시를 살린다. 소스가 바뀌어도 install을 다시 하지 않는다.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/contracts/package.json ./packages/contracts/
