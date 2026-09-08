@@ -230,6 +230,9 @@ PostgREST API 스키마에 노출된다.
 
 ## 시작하기
 
+**Node 22 이상**이 필요하다. `@supabase/supabase-js` 가 네이티브 WebSocket 을 쓰는데
+Node 22 부터 들어갔다. 20 에서는 Supabase 클라이언트를 만드는 순간 죽는다.
+
 Supabase는 **Lastly 전용 프로젝트를 새로 만든다.** 절차는 [docs/SETUP.md](docs/SETUP.md)에 있다.
 
 ```bash

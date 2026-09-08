@@ -1,7 +1,7 @@
 # 모노레포 루트를 컨텍스트로 빌드한다:
 #   docker build -f apps/api/Dockerfile -t lastly-api .
 
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /repo
@@ -19,7 +19,9 @@ COPY apps/api ./apps/api
 RUN pnpm --filter @lastly/api... build
 
 
-FROM node:20-slim AS runner
+# @supabase/supabase-js 는 네이티브 WebSocket 을 쓴다. Node 22 부터 들어갔으므로
+# 20 에서는 SupabaseClient 를 만드는 순간 죽는다.
+FROM node:22-slim AS runner
 
 WORKDIR /repo
 ENV NODE_ENV=production
