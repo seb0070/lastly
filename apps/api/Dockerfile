@@ -6,9 +6,6 @@ FROM node:20-slim AS builder
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /repo
 
-# pnpm prune 이 확인 프롬프트를 띄운다. 빌드에는 입력 장치가 없어 멈춰버린다.
-ENV CI=true
-
 # 의존성 목록만 먼저 복사해 캐시를 살린다. 소스가 바뀌어도 install을 다시 하지 않는다.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/contracts/package.json ./packages/contracts/
@@ -21,23 +18,23 @@ COPY apps/api ./apps/api
 # contracts는 런타임 값(zod 스키마)이라 dist가 없으면 api가 실행 시 죽는다.
 RUN pnpm --filter @lastly/api... build
 
-# 실행에 필요 없는 개발 의존성을 덜어낸다.
-RUN pnpm prune --prod
-
 
 FROM node:20-slim AS runner
 
 WORKDIR /repo
 ENV NODE_ENV=production
 
-# 루트 권한으로 돌리지 않는다.
-USER node
+# 빌드 결과를 통째로 옮긴다.
+#
+# node_modules 를 조각내어 옮기지 않는 이유: pnpm 은 apps/api/node_modules 안에
+# ../../node_modules/.pnpm/... 을 가리키는 심볼릭 링크를 둔다. 디렉터리별로 나눠 복사하면
+# 이 링크가 끊기고, 실행할 때 reflect-metadata 같은 모듈을 못 찾는다.
+#
+# pnpm prune --prod 도 쓰지 않는다. 워크스페이스 패키지의 node_modules 까지
+# 비워버려 같은 증상을 만든다. 이미지가 조금 커지는 대신 확실히 뜬다.
+COPY --from=builder --chown=node:node /repo /repo
 
-COPY --from=builder --chown=node:node /repo/node_modules ./node_modules
-COPY --from=builder --chown=node:node /repo/packages ./packages
-COPY --from=builder --chown=node:node /repo/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder --chown=node:node /repo/apps/api/dist ./apps/api/dist
-COPY --from=builder --chown=node:node /repo/apps/api/package.json ./apps/api/
+USER node
 
 # 호스팅 서비스가 PORT를 주입한다. 값이 없을 때만 4000을 쓴다.
 ENV PORT=4000
