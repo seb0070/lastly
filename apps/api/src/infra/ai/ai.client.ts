@@ -3,7 +3,15 @@ import { ConfigService } from '@nestjs/config';
 
 import type { AiCadenceRequest, AiCadenceResponse, AiEmbedResponse, AiParseRequest, AiParseResponse } from './ai.types';
 
+/** 깨어 있는 AI는 1초 안에 답한다. 이걸 넘기면 자고 있다고 본다. */
 const TIMEOUT_MS = 8_000;
+
+/**
+ * 무료 호스팅은 15분 놀면 컨테이너를 재운다. 다시 깨는 데 20초 남짓 걸려서
+ * 한 번만 시도하면 '한동안 안 쓰다가 처음 하는 기록'은 매번 인식에 실패한다.
+ * 첫 시도가 시간 초과나 연결 실패로 끝났을 때만 이 예산으로 한 번 더 부른다.
+ */
+const COLD_START_TIMEOUT_MS = 30_000;
 
 /**
  * apps/ai (FastAPI) 호출 클라이언트.
@@ -34,8 +42,24 @@ export class AiClient {
   }
 
   private async post<T>(path: string, body: unknown): Promise<T | null> {
+    const first = await this.attempt<T>(path, body, TIMEOUT_MS);
+    if (first.ok) return first.value;
+
+    // 응답이 아예 없었을 때만 다시 부른다. 4xx/5xx는 다시 불러도 같은 답이다.
+    if (!first.unreachable) return null;
+
+    this.logger.log(`AI ${path} 무응답 — 깨어나길 기다리며 한 번 더 시도한다`);
+    const second = await this.attempt<T>(path, body, COLD_START_TIMEOUT_MS);
+    return second.ok ? second.value : null;
+  }
+
+  private async attempt<T>(
+    path: string,
+    body: unknown,
+    timeoutMs: number,
+  ): Promise<{ ok: true; value: T } | { ok: false; unreachable: boolean }> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const res = await fetch(`${this.baseUrl}${path}`, {
@@ -47,12 +71,14 @@ export class AiClient {
 
       if (!res.ok) {
         this.logger.warn(`AI ${path} responded ${res.status}`);
-        return null;
+        return { ok: false, unreachable: false };
       }
-      return (await res.json()) as T;
+      return { ok: true, value: (await res.json()) as T };
     } catch (err) {
       this.logger.warn(`AI ${path} failed: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
+      return { ok: false, unreachable: true };
+    } finally {
+      clearTimeout(timer);
     }
   }
 }
