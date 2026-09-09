@@ -13,6 +13,9 @@ const TIMEOUT_MS = 8_000;
  */
 const COLD_START_TIMEOUT_MS = 30_000;
 
+/** 이 시간 안에 이미 깨워봤으면 다시 두드리지 않는다. */
+const WARMUP_INTERVAL_MS = 5 * 60_000;
+
 /**
  * apps/ai (FastAPI) 호출 클라이언트.
  * AI는 거들 뿐이라 실패해도 기능 전체가 멈추면 안 된다.
@@ -23,10 +26,28 @@ export class AiClient {
   private readonly logger = new Logger(AiClient.name);
   private readonly baseUrl: string;
   private readonly token: string;
+  private lastWarmUpAt = 0;
 
   constructor(config: ConfigService) {
     this.baseUrl = config.getOrThrow<string>('AI_SERVICE_URL').replace(/\/$/, '');
     this.token = config.getOrThrow<string>('AI_SERVICE_TOKEN');
+  }
+
+  /**
+   * 잠들어 있을 AI를 미리 깨운다. 응답을 기다리지 않는다.
+   *
+   * 홈을 열 때 불러두면, 사용자가 문장을 말하고 누르기까지의 몇 초 동안
+   * 컨테이너가 먼저 뜬다. 첫 기록에서 30초를 기다리는 일이 사실상 없어진다.
+   * 실패해도 아무것도 하지 않는다 — 어차피 진짜 호출이 다시 시도한다.
+   */
+  warmUp(): void {
+    const now = Date.now();
+    if (now - this.lastWarmUpAt < WARMUP_INTERVAL_MS) return;
+    this.lastWarmUpAt = now;
+
+    fetch(`${this.baseUrl}/healthz`, { signal: AbortSignal.timeout(COLD_START_TIMEOUT_MS) }).catch(
+      () => undefined,
+    );
   }
 
   parseUtterance(body: AiParseRequest) {
