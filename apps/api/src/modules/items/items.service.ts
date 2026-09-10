@@ -1,12 +1,14 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import type {
+  CalendarMark,
+  CalendarMonth,
   CreateItemInput,
   HomeFeed,
   Item,
   SearchResult,
   UpdateItemInput,
 } from '@lastly/contracts';
-import { startOfWeek } from 'date-fns';
+import { differenceInCalendarDays, endOfMonth, format, parseISO, startOfWeek } from 'date-fns';
 
 import { AiClient } from '../../infra/ai/ai.client';
 import { CadenceService } from '../cadence/cadence.service';
@@ -147,6 +149,52 @@ export class ItemsService {
         note: n.note,
       })),
     };
+  }
+
+  /**
+   * 한 달치 달력 — 설계 05-C.
+   *
+   * 예정일은 각 항목의 다음 한 번만 찍는다. 주기로 앞날을 계속 그려내면
+   * 아직 일어나지 않은 일이 사실처럼 보이는데, 주기는 기록이 쌓이면 바뀐다.
+   */
+  async calendar(userId: string, month: string, today = new Date()): Promise<CalendarMonth> {
+    const from = `${month}-01`;
+    const to = format(endOfMonth(parseISO(from)), 'yyyy-MM-dd');
+    const todayIso = format(today, 'yyyy-MM-dd');
+
+    const [rows, logs] = await Promise.all([
+      this.items.listActive(userId),
+      this.logs.listBetween(userId, from, to),
+    ]);
+
+    const days: Record<string, CalendarMark[]> = {};
+    const push = (date: string, mark: CalendarMark) => {
+      (days[date] ??= []).push(mark);
+    };
+
+    for (const log of logs) {
+      push(log.done_on, {
+        itemId: log.item_id,
+        name: log.items.name,
+        kind: 'done',
+        overdueDays: null,
+      });
+    }
+
+    for (const row of rows) {
+      const due = row.next_due_on;
+      if (!due || due < from || due > to) continue;
+
+      const overdue = due < todayIso;
+      push(due, {
+        itemId: row.id,
+        name: row.name,
+        kind: overdue ? 'overdue' : 'due',
+        overdueDays: overdue ? differenceInCalendarDays(parseISO(todayIso), parseISO(due)) : null,
+      });
+    }
+
+    return { month, days };
   }
 
   async restore(userId: string, itemId: string): Promise<void> {

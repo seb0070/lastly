@@ -89,3 +89,22 @@ export const searchResultSchema = z.object({
   ),
 });
 export type SearchResult = z.infer<typeof searchResultSchema>;
+
+/** 달력 한 칸에 찍히는 표시 — 설계 05-C 의 점 세 가지. */
+export const calendarMarkSchema = z.object({
+  itemId: uuidSchema,
+  name: z.string(),
+  /** due 다가올 예정일 · done 실제로 한 날 · overdue 지나간 예정일 */
+  kind: z.enum(['due', 'done', 'overdue']),
+  /** overdue 일 때 며칠 밀렸는지. */
+  overdueDays: z.number().int().nullable(),
+});
+export type CalendarMark = z.infer<typeof calendarMarkSchema>;
+
+export const calendarMonthSchema = z.object({
+  /** YYYY-MM */
+  month: z.string(),
+  /** 날짜(YYYY-MM-DD) → 그 날의 표시들. 비어 있는 날은 키가 없다. */
+  days: z.record(z.string(), z.array(calendarMarkSchema)),
+});
+export type CalendarMonth = z.infer<typeof calendarMonthSchema>;
