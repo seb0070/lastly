@@ -42,7 +42,11 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   });
 
   const commit = useMutation({
-    mutationFn: async (input: { itemId?: string; newItemName?: string }) => {
+    mutationFn: async (input: {
+      itemId?: string;
+      newItemName?: string;
+      note?: string | null;
+    }) => {
       if (!result) throw new Error('해석 결과가 없습니다.');
 
       return captureApi.commit({
@@ -51,7 +55,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
         newItemName: input.newItemName,
         doneOn: result.doneOn,
         cadence: cadenceOverride ?? undefined,
-        note: null,
+        note: input.note ?? null,
       });
     },
     onSuccess: async (data) => {
