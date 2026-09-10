@@ -73,12 +73,24 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
     }) => {
       if (!result) throw new Error('해석 결과가 없습니다.');
 
+      /**
+       * 새 항목에는 화면에 보여준 주기를 그대로 실어 보낸다.
+       *
+       * 사용자가 주기 시트를 열어 고친 경우에만 보내고 있어서, "한달에 한번" 을
+       * 확인하고 그냥 저장하면 서버가 기본값 2주로 만들었다.
+       *
+       * 기존 항목에는 고친 값만 보낸다. 보여준 값을 되돌려 보내면 원래 주기가
+       * 사용자 지정으로 덮여 다음 제안에 영향을 준다.
+       */
+      const isNew = Boolean(input.newItemName);
+      const cadence = cadenceOverride ?? (isNew ? result.cadence?.rule : undefined);
+
       return captureApi.commit({
         draftToken: result.draftToken,
         itemId: input.itemId,
         newItemName: input.newItemName,
         doneOn: result.doneOn,
-        cadence: cadenceOverride ?? undefined,
+        cadence: cadence ?? undefined,
         note: input.note ?? null,
       });
     },
