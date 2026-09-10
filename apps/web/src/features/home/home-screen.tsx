@@ -166,7 +166,8 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
                 completingId={complete.isPending ? (complete.variables?.id ?? null) : null}
               />
             ) : (
-              <AllDoneCard summary={summary} />
+              /* 방금 기록해서 비워진 날(05-B)과 애초에 없던 날(05-E)의 말이 다르다. */
+              <AllDoneCard summary={summary} justFinished={Boolean(capture.committed)} />
             )}
 
             {upcoming.length > 0 ? (

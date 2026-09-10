@@ -48,21 +48,28 @@ export function HomeHeader({
  * 여기에 overdueCount 를 더하면 밀린 것이 두 번 세어져 카드 수와 어긋난다.
  */
 function headline(summary: HomeSummary): string {
-  return summary.dueTodayCount > 0
-    ? `오늘 챙길 가사 ${summary.dueTodayCount}개`
-    : '오늘 챙길 가사가 없어요';
+  // 0 일 때도 셈으로 말한다. "없어요" 는 바로 아래 카드가 하는 말이라 겹친다.
+  return `오늘 챙길 가사 ${summary.dueTodayCount}개`;
 }
 
-/** 오늘 할 게 없을 때 (설계 05-B). */
-export function AllDoneCard({ summary }: { summary: HomeSummary }) {
+/**
+ * 오늘 챙길 게 없는 날 — 설계 05-E.
+ *
+ * 히어로 캐러셀이 서던 자리를 그대로 쓴다. 빈칸으로 두면 화면이 무너져
+ * "오늘은 할 게 없다" 가 아니라 "뭔가 안 불러왔다" 로 읽힌다.
+ * 방금 다 끝냈을 때(05-B)와 애초에 없던 날(05-E)의 말이 다르다.
+ */
+export function AllDoneCard({ summary, justFinished }: { summary: HomeSummary; justFinished?: boolean }) {
   return (
-    <div className="mt-3 rounded-hero border border-line-2 bg-hero px-5 py-6 text-center shadow-hero">
-      <p className="text-17 font-bold tracking-t35 text-ink">오늘 할 건 다 하셨어요</p>
-      {summary.nextUp ? (
-        <p className="mt-2 text-13 text-ink-3">
-          다음은 {formatShortDate(summary.nextUp.dueOn)} · {summary.nextUp.name}예요
-        </p>
-      ) : null}
+    <div className="mt-4 rounded-card border border-line-2 bg-[linear-gradient(180deg,var(--lastly-card-hi-from),var(--lastly-card-hi-to))] px-5 py-[26px] text-center">
+      <p className="text-20 font-bold tracking-t3 text-ink">
+        {justFinished ? '오늘 할 건 다 하셨어요 🎉' : '오늘 챙길 가사가 없어요 🌿'}
+      </p>
+      <p className="mt-2 text-[13.5px] text-ink-2">
+        {summary.nextUp
+          ? `${justFinished ? '' : '편안한 하루 보내세요. '}다음은 ${formatShortDate(summary.nextUp.dueOn)} · ${summary.nextUp.name}예요`
+          : '편안한 하루 보내세요.'}
+      </p>
     </div>
   );
 }
