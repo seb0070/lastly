@@ -209,6 +209,7 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
           onKeyboard={retryWithKeyboard}
           onDismiss={capture.cancel}
           committing={capture.committing}
+          mode={capture.lastMode}
         />
       ) : null}
 
