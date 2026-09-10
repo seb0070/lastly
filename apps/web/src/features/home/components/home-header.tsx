@@ -23,9 +23,15 @@ export function HomeHeader({
           {!empty && summary.greetingName ? ` · ${summary.greetingName}님` : ''}
         </div>
 
-        <Link href="/settings" aria-label="설정" className="shrink-0">
-          <GearIcon />
-        </Link>
+        <span className="flex shrink-0 items-center gap-4">
+          <Link href="/search" aria-label="찾기" className="flex text-ink-2">
+            {/* 설계 05 는 21px, 설정 아이콘보다 한 칸 작다. */}
+            <SearchIcon />
+          </Link>
+          <Link href="/settings" aria-label="설정" className="flex text-ink-2">
+            <GearIcon />
+          </Link>
+        </span>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-3">
@@ -74,6 +80,24 @@ export function AllDoneCard({ summary, justFinished }: { summary: HomeSummary; j
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.6-3.6" />
+    </svg>
+  );
+}
+
 function GearIcon() {
   return (
     <svg
@@ -85,7 +109,6 @@ function GearIcon() {
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-ink-2"
       aria-hidden
     >
       <circle cx="12" cy="12" r="3.2" />
