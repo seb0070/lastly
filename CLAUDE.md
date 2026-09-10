@@ -42,11 +42,15 @@ contracts · design · deploy · build · dev 중 하나. 스코프는 빼지 �
 
 ## dev 가 도는 중에 build 를 돌리지 않는다
 
-`next build` 는 `next dev` 와 같은 `.next` 를 쓴다. 개발 서버를 켜둔 채
-빌드하면 프로덕션 산출물이 덮어써서, 화면은 200 으로 뜨는데 CSS 와 청크가
-전부 404 가 된다. 스타일 없는 날것 화면이 나오면 이걸 의심한다.
+개발 서버와 빌드가 같은 산출물 폴더를 쓴다. 켜둔 채로 빌드하면 서로 덮어써서
+깨진다. 웹은 화면이 200 으로 뜨는데 CSS 와 청크가 404 가 되고(스타일 없는 날것
+화면이 나오면 이걸 의심한다), API 는 dist 가 반쯤 지워져 기동조차 못 한다.
 
-고치는 법은 `.next` 를 지우고 개발 서버를 다시 띄우는 것뿐이다.
+  apps/web   next dev  ↔  next build   .next
+  apps/api   nest start --watch ↔ nest build   dist
+
+타입만 보려면 `typecheck` 를 쓴다. 굳이 빌드해야 하면 개발 서버를 먼저 멈추고,
+깨졌으면 산출물 폴더를 지우고 다시 띄운다.
 
 ## 고쳤으면 띄워서 본다
 
