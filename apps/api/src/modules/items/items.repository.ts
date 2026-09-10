@@ -129,6 +129,24 @@ export class ItemsRepository {
     if (error) throw error;
   }
 
+  /**
+   * 이름으로 찾기 — 설계 05-D.
+   * 검색은 사용자가 이미 아는 것을 다시 꺼내는 일이라 의미 검색이 아니라
+   * 글자 그대로 찾는다. "필터" 를 쳤으면 "필터" 가 든 것만 나와야 한다.
+   */
+  async searchByName(userId: string, query: string, limit = 20): Promise<ItemRow[]> {
+    const { data, error } = await this.table
+      .select(COLUMNS)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .ilike('name', `%${query}%`)
+      .order('next_due_on', { ascending: true, nullsFirst: true })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data ?? []) as ItemRow[];
+  }
+
   /** match_items RPC — 임베딩 + 트라이그램 + 별칭을 함께 본다. */
   async matchByMeaning(userId: string, query: string, embedding: number[] | null, limit = 5) {
     const { data, error } = await this.supabase.admin.rpc('match_items', {

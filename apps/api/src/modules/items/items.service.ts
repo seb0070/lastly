@@ -1,5 +1,11 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import type { CreateItemInput, HomeFeed, Item, UpdateItemInput } from '@lastly/contracts';
+import type {
+  CreateItemInput,
+  HomeFeed,
+  Item,
+  SearchResult,
+  UpdateItemInput,
+} from '@lastly/contracts';
 import { startOfWeek } from 'date-fns';
 
 import { AiClient } from '../../infra/ai/ai.client';
@@ -114,6 +120,33 @@ export class ItemsService {
   }
   async remove(userId: string, itemId: string): Promise<void> {
     await this.items.archive(userId, itemId);
+  }
+
+  /**
+   * 항목 이름과 기록 메모를 함께 뒤진다 — 설계 05-D.
+   *
+   * 메모를 같이 찾는 게 요점이다. "필터 두 장 남음" 처럼 그때 적어둔 말은
+   * 항목 이름에는 없지만 사용자가 기억하는 단서다.
+   */
+  async search(userId: string, query: string, today = new Date()): Promise<SearchResult> {
+    const q = query.trim();
+    if (!q) return { items: [], notes: [] };
+
+    const [rows, notes] = await Promise.all([
+      this.items.searchByName(userId, q),
+      this.logs.searchByNote(userId, q),
+    ]);
+
+    return {
+      items: rows.map((row) => toItem(row, this.cadence, today)),
+      notes: notes.map((n) => ({
+        logId: n.id,
+        itemId: n.item_id,
+        itemName: n.items.name,
+        doneOn: n.done_on,
+        note: n.note,
+      })),
+    };
   }
 
   async restore(userId: string, itemId: string): Promise<void> {

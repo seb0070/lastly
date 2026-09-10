@@ -73,3 +73,19 @@ export const homeFeedSchema = z.object({
   later: z.array(itemSchema),
 });
 export type HomeFeed = z.infer<typeof homeFeedSchema>;
+
+/** 검색 결과 — 설계 05-D. 항목 이름과 기록 메모를 함께 뒤진다. */
+export const searchResultSchema = z.object({
+  items: z.array(itemSchema),
+  /** 메모가 걸린 기록. 어느 항목의 언제 기록인지 함께 보여준다. */
+  notes: z.array(
+    z.object({
+      logId: uuidSchema,
+      itemId: uuidSchema,
+      itemName: z.string(),
+      doneOn: isoDateSchema,
+      note: z.string(),
+    }),
+  ),
+});
+export type SearchResult = z.infer<typeof searchResultSchema>;
