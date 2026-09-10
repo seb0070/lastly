@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Toast } from '@/components/ui/toast';
 import { CadenceSheet } from '@/features/capture/components/cadence-sheet';
+import { AnswerCard } from '@/features/capture/components/answer-card';
 import { CaptureBar } from '@/features/capture/components/capture-bar';
 import { ConfirmSheet } from '@/features/capture/components/confirm-sheet';
 import { DisambiguateSheet } from '@/features/capture/components/disambiguate-sheet';
@@ -229,6 +230,20 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
         liveTranscript={speech.transcript}
         interpreting={capture.interpreting}
         quickPhrases={quickPhrases}
+        above={
+          capture.step === 'answered' && capture.result ? (
+            <AnswerCard
+              result={capture.result}
+              completing={complete.isPending}
+              onComplete={(itemId) => {
+                const item = [...due, ...upcoming, ...later].find((i) => i.id === itemId);
+                if (item) complete.mutate(item);
+                capture.cancel();
+              }}
+              onDismiss={capture.cancel}
+            />
+          ) : null
+        }
       />
 
       {capture.step === 'confirm' && capture.result ? (

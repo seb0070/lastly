@@ -128,6 +128,7 @@ const config: Config = {
         input: 'var(--lastly-shadow-input)',
         'hero-card': 'var(--lastly-shadow-hero-card)',
         chip: 'var(--lastly-shadow-chip)',
+        answer: 'var(--lastly-shadow-answer)',
       },
 
       backgroundImage: {
