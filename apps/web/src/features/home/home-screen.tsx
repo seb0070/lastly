@@ -11,6 +11,7 @@ import { ConfirmSheet } from '@/features/capture/components/confirm-sheet';
 import { DisambiguateSheet } from '@/features/capture/components/disambiguate-sheet';
 import { useCapture } from '@/features/capture/use-capture';
 import { useSpeechRecognition } from '@/features/capture/use-speech-recognition';
+import { takeDeletedNotice, type DeletedNotice } from '@/features/items/deleted-notice';
 import { itemsApi } from '@/lib/api/items';
 import { queryKeys } from '@/lib/api/query-keys';
 import { formatShortDate } from '@/lib/date';
@@ -43,6 +44,8 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
 
   const [cadenceItem, setCadenceItem] = useState<Item | null>(null);
   const [draft, setDraft] = useState('');
+  /** 상세에서 항목을 지우고 넘어왔다면 되돌릴 기회를 띄운다. */
+  const [deleted, setDeleted] = useState<DeletedNotice | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -55,6 +58,28 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
   ]
     .slice(0, 3)
     .map((item) => item.name);
+
+  /**
+   * 홈에 들어올 때 한 번만 본다. 읽으면 지워지므로 새로고침해도 다시 뜨지 않는다.
+   *
+   * ref 로 막는 이유: 개발 모드의 StrictMode 는 effect 를 두 번 실행한다.
+   * 첫 번째가 읽고 지운 값을 두 번째가 못 찾아 null 로 덮어써서 토스트가
+   * 뜨자마자 사라진다.
+   */
+  const noticeRead = useRef(false);
+  useEffect(() => {
+    if (noticeRead.current) return;
+    noticeRead.current = true;
+    setDeleted(takeDeletedNotice());
+  }, []);
+
+  const restore = useMutation({
+    mutationFn: (id: string) => itemsApi.restore(id),
+    onSuccess: async () => {
+      setDeleted(null);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.home });
+    },
+  });
 
   const complete = useMutation({
     mutationFn: (item: Item) => itemsApi.complete(item.id),
@@ -230,6 +255,17 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
             setCadenceItem(null);
           }}
           onClose={() => setCadenceItem(null)}
+        />
+      ) : null}
+
+      {deleted ? (
+        <Toast
+          message={`${deleted.name} 삭제됨`}
+          actionLabel="되돌리기"
+          onAction={() => restore.mutate(deleted.id)}
+          onDismiss={() => setDeleted(null)}
+          // 지운 걸 알아채는 데 시간이 걸린다. 완료 토스트보다 길게 연다.
+          durationMs={10000}
         />
       ) : null}
 
