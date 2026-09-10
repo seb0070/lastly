@@ -30,7 +30,7 @@ interface HomeScreenProps {
   initialFeed: HomeFeed | null;
 }
 
-/** 화면 04 / 05 / 05-B / 07 / 07-B / 08 / 09 / 10 — 단일 홈 구조의 전부. */
+/** 화면 04 / 05 / 05-B / 07 / 07-C / 08 / 09 / 10 — 단일 홈 구조의 전부. */
 export function HomeScreen({ initialFeed }: HomeScreenProps) {
   const queryClient = useQueryClient();
   const today = new Date();

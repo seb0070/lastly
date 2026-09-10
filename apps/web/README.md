@@ -131,7 +131,7 @@ Tailwind 기본 스케일로 뭉개면 다른 화면이 된다. 그래서 `text-
 |---|---|
 | `matched_existing` | 확인 시트 (설계 08) |
 | `new_item` | 확인 시트 (설계 09) |
-| `ambiguous` · `unrecognized` | 재확인 시트 (설계 07-B) |
+| `ambiguous` · `unrecognized` | 재확인 시트 (설계 07 안) |
 
 ---
 

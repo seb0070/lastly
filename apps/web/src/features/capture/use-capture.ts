@@ -15,8 +15,8 @@ import { queryKeys } from '@/lib/api/query-keys';
  * step은 서버가 내려준 outcome에서 파생된다. 프론트가 직접 판단하지 않는다.
  *   matched_existing → confirm (화면 08)
  *   new_item         → confirm (화면 09)
- *   ambiguous        → disambiguate (화면 07-B)
- *   unrecognized     → retry (화면 07-B)
+ *   ambiguous        → disambiguate (07 재확인 시트)
+ *   unrecognized     → retry (07 재확인 시트)
  */
 export type CaptureStep =
   | 'idle'
@@ -102,13 +102,13 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
     },
   });
 
-  /** 07-B에서 후보를 골랐을 때 — 바로 저장으로 넘어간다. */
+  /** 재확인 시트에서 후보를 골랐을 때 — 바로 저장으로 넘어간다. */
   const chooseCandidate = useCallback(
     (itemId: string) => commit.mutate({ itemId }),
     [commit],
   );
 
-  /** 07-B에서 "새 항목으로 만들기". 이름은 원문을 그대로 쓴다. */
+  /** 재확인 시트에서 "새 항목으로 만들기". 이름은 원문을 그대로 쓴다. */
   const createAsNew = useCallback(
     (name: string) => commit.mutate({ newItemName: name }),
     [commit],
