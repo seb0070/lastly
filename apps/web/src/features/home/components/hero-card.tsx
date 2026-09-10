@@ -22,7 +22,7 @@ export function HeroCard({
     <div className="rounded-hero border border-line-2 bg-hero p-[18px_20px] shadow-hero transition-transform active:scale-[.995]">
       <Link href={`/items/${item.id}`} className="block">
         <div className="flex items-center gap-2">
-          <span className="block h-1.5 w-1.5 rounded-full bg-dot-warn" />
+          <span className="block h-1.5 w-1.5 rounded-full bg-action" />
           <span className="text-12.5 font-bold tracking-wide2 text-accent-ink">오늘 챙길 것</span>
         </div>
 

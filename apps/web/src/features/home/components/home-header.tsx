@@ -22,7 +22,7 @@ export function HomeHeader({
             {formatHeaderDate(today)}
             {!empty && summary.greetingName ? ` · ${summary.greetingName}님` : ''}
           </span>
-          <span className="flex shrink-0 items-center gap-1 font-semibold text-sage-ink">
+          <span className="flex shrink-0 items-center gap-1 font-semibold text-accent-ink">
             <span className="block h-[5px] w-[5px] rounded-full bg-sage" />
             백업됨
           </span>
