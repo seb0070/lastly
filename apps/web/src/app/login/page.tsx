@@ -27,9 +27,16 @@ function LoginScreen() {
   // 막혀서 돌아온 자리. 로그인 뒤 그리로 데려간다.
   const next = params.get('next') ?? '/';
   const failed = params.get('error') === 'auth';
-  const [pending, setPending] = useState<'kakao' | 'google' | null>(null);
+  /**
+   * 카카오는 아직 없다.
+   *
+   * 콘솔 등록과 심사가 끝나기 전에는 Supabase 가 provider is not enabled 를
+   * 그대로 내려보내, 누르면 앱이 아니라 원시 JSON 화면이 뜬다.
+   * 등록이 끝나면 provider 를 'kakao' | 'google' 로 되돌리고 버튼만 더한다.
+   */
+  const [pending, setPending] = useState<'google' | null>(null);
 
-  const signIn = async (provider: 'kakao' | 'google') => {
+  const signIn = async (provider: 'google') => {
     setPending(provider);
     const callback = new URL('/auth/callback', window.location.origin);
     callback.searchParams.set('next', next);
@@ -73,16 +80,6 @@ function LoginScreen() {
       <div className="mt-auto flex flex-col gap-2.5">
         <button
           type="button"
-          onClick={() => signIn('kakao')}
-          disabled={pending !== null}
-          className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl bg-[#FEE500] text-16 font-semibold text-[#191600] disabled:opacity-60"
-        >
-          <span className="block h-[18px] w-5 rounded-[9px_9px_8px_8px] bg-[#191600]" aria-hidden />
-          {pending === 'kakao' ? '연결하는 중…' : '카카오로 계속하기'}
-        </button>
-
-        <button
-          type="button"
           onClick={() => signIn('google')}
           disabled={pending !== null}
           className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-card text-16 font-semibold text-ink disabled:opacity-60"
@@ -93,7 +90,6 @@ function LoginScreen() {
           />
           {pending === 'google' ? '연결하는 중…' : '구글로 계속하기'}
         </button>
-
       </div>
     </main>
   );
