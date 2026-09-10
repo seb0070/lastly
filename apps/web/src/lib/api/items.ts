@@ -1,4 +1,5 @@
 import type {
+  CalendarMonth,
   CompleteItemResult,
   CreateItemInput,
   HomeFeed,
@@ -20,6 +21,7 @@ export const itemsApi = {
     apiFetch<Item>(`/items/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => apiFetch<void>(`/items/${id}`, { method: 'DELETE' }),
   restore: (id: string) => apiFetch<void>(`/items/${id}/restore`, { method: 'POST' }),
+  calendar: (month: string) => apiFetch<CalendarMonth>(`/home/calendar?month=${month}`),
   search: (q: string) => apiFetch<SearchResult>(`/items/search?q=${encodeURIComponent(q)}`),
   complete: (id: string) =>
     apiFetch<CompleteItemResult>(`/items/${id}/complete`, { method: 'POST' }),

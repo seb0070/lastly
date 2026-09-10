@@ -11,10 +11,11 @@ import { ConfirmSheet } from '@/features/capture/components/confirm-sheet';
 import { DisambiguateSheet } from '@/features/capture/components/disambiguate-sheet';
 import { useCapture } from '@/features/capture/use-capture';
 import { useSpeechRecognition } from '@/features/capture/use-speech-recognition';
+import { CalendarView } from '@/features/calendar/calendar-view';
 import { takeDeletedNotice, type DeletedNotice } from '@/features/items/deleted-notice';
 import { itemsApi } from '@/lib/api/items';
 import { queryKeys } from '@/lib/api/query-keys';
-import { formatShortDate } from '@/lib/date';
+import { formatMonth, formatShortDate, formatYearMonth } from '@/lib/date';
 
 import { EmptyState } from './components/empty-state';
 import { HomeError, HomeSkeleton } from './components/home-states';
@@ -46,6 +47,8 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
   const [draft, setDraft] = useState('');
   /** 상세에서 항목을 지우고 넘어왔다면 되돌릴 기회를 띄운다. */
   const [deleted, setDeleted] = useState<DeletedNotice | null>(null);
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [month, setMonth] = useState(() => formatMonth(new Date()));
   const inputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -148,7 +151,15 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
   return (
     <main className="pb-capture-bar min-h-dvh">
       <div className="px-6 pt-[18px]">
-        <HomeHeader summary={summary} today={today} empty={isEmpty} />
+        <HomeHeader
+          summary={summary}
+          today={today}
+          empty={isEmpty}
+          // 기록이 없으면 볼 달력도 없다.
+          view={isEmpty ? undefined : view}
+          onViewChange={isEmpty ? undefined : setView}
+          title={view === 'calendar' ? formatYearMonth(month) : undefined}
+        />
 
         {isEmpty ? (
           <EmptyState
@@ -157,6 +168,8 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
               inputRef.current?.focus();
             }}
           />
+        ) : view === 'calendar' ? (
+          <CalendarView today={today} month={month} onMonthChange={setMonth} />
         ) : (
           <div>
             {due.length > 0 ? (

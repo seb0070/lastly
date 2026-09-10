@@ -1,6 +1,7 @@
 import type { HomeSummary } from '@lastly/contracts';
 import Link from 'next/link';
 
+import { cn } from '@/lib/cn';
 import { formatHeaderDate, formatShortDate } from '@/lib/date';
 
 /** 설계 05 상단 — 날짜·백업 상태·헤드라인, 오른쪽에 설정. */
@@ -8,11 +9,18 @@ export function HomeHeader({
   summary,
   today,
   empty,
+  view,
+  onViewChange,
+  title,
 }: {
   summary: HomeSummary;
   today: Date;
   /** 설계 04 — 기록이 없으면 인사만 건넨다. */
   empty?: boolean;
+  view?: 'list' | 'calendar';
+  onViewChange?: (view: 'list' | 'calendar') => void;
+  /** 달력에서는 헤드라인 자리에 연·월이 온다. */
+  title?: string;
 }) {
   return (
     <header className="safe-top px-1 pt-2">
@@ -40,8 +48,12 @@ export function HomeHeader({
             안녕하세요{summary.greetingName ? `, ${summary.greetingName}님` : ''}
           </h1>
         ) : (
-          <h1 className="min-w-0 text-23 font-bold tracking-t35 text-ink">{headline(summary)}</h1>
+          <h1 className="min-w-0 text-23 font-bold tracking-t35 text-ink">
+            {title ?? headline(summary)}
+          </h1>
         )}
+
+        {view && onViewChange ? <ViewToggle value={view} onChange={onViewChange} /> : null}
       </div>
     </header>
   );
@@ -77,6 +89,70 @@ export function AllDoneCard({ summary, justFinished }: { summary: HomeSummary; j
           : '편안한 하루 보내세요.'}
       </p>
     </div>
+  );
+}
+
+/** 목록 ↔ 달력 — 설계 05/05-C. 고른 쪽만 밝은 면으로 떠오른다. */
+function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: 'list' | 'calendar';
+  onChange: (view: 'list' | 'calendar') => void;
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-0.5 rounded-[12px] bg-surface-sunken p-[3px]">
+      <ToggleButton active={value === 'list'} label="목록으로 보기" onClick={() => onChange('list')}>
+        <path d="M8 6h12M8 12h12M8 18h12M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+      </ToggleButton>
+      <ToggleButton
+        active={value === 'calendar'}
+        label="달력으로 보기"
+        onClick={() => onChange('calendar')}
+      >
+        <rect x="3" y="4.5" width="18" height="16" rx="3" />
+        <path d="M3 9.5h18M8 3v3M16 3v3" />
+      </ToggleButton>
+    </span>
+  );
+}
+
+function ToggleButton({
+  active,
+  label,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      className={cn(
+        'flex h-7 w-[34px] items-center justify-center rounded-[9px]',
+        active ? 'bg-card text-ink shadow-hair' : 'text-ink-faint',
+      )}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        {children}
+      </svg>
+    </button>
   );
 }
 
