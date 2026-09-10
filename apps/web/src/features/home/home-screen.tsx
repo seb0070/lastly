@@ -16,7 +16,7 @@ import { CalendarView } from '@/features/calendar/calendar-view';
 import { takeDeletedNotice, type DeletedNotice } from '@/features/items/deleted-notice';
 import { itemsApi } from '@/lib/api/items';
 import { queryKeys } from '@/lib/api/query-keys';
-import { formatMonth, formatShortDate, formatYearMonth } from '@/lib/date';
+import { formatMonth, formatShortDate, formatYearMonth, todayIso } from '@/lib/date';
 
 import { EmptyState } from './components/empty-state';
 import { HomeError, HomeSkeleton } from './components/home-states';
@@ -271,7 +271,7 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
         <CadenceSheet
           open
           itemName={cadenceItem.name}
-          doneOn={cadenceItem.lastDoneOn ?? new Date().toISOString().slice(0, 10)}
+          doneOn={cadenceItem.lastDoneOn ?? todayIso()}
           value={cadenceItem.cadence}
           onChange={async (rule) => {
             await itemsApi.update(cadenceItem.id, { cadence: rule, cadenceSource: 'user' });
