@@ -43,22 +43,14 @@ export function HomeHeader({
 
 /**
  * 설계 05 는 "오늘 챙길 가사 2개" 처럼 셈만 말한다.
- * 밀린 것도 오늘 챙길 것에 함께 세어 한 줄로 둔다 — 줄이 늘면 헤드라인이 아니게 된다.
+ *
+ * dueTodayCount 는 이미 밀린 항목까지 세고 있다(서버의 due 버킷 크기 그대로).
+ * 여기에 overdueCount 를 더하면 밀린 것이 두 번 세어져 카드 수와 어긋난다.
  */
 function headline(summary: HomeSummary): string {
-  const due = summary.dueTodayCount + summary.overdueCount;
-  return due > 0 ? `오늘 챙길 가사 ${due}개` : '오늘 챙길 가사가 없어요';
-}
-
-/** "이번 주 3개 완료 · 평균 주기 18일 · 밀린 항목 없음" */
-export function HomeSummaryLine({ summary }: { summary: HomeSummary }) {
-  const parts = [
-    `이번 주 ${summary.completedThisWeek}개 완료`,
-    summary.averageIntervalDays ? `평균 주기 ${summary.averageIntervalDays}일` : null,
-    summary.overdueCount > 0 ? `밀린 항목 ${summary.overdueCount}개` : '밀린 항목 없음',
-  ].filter(Boolean);
-
-  return <p className="mt-2.5 px-1.5 text-12.5 text-ink-3">{parts.join(' · ')}</p>;
+  return summary.dueTodayCount > 0
+    ? `오늘 챙길 가사 ${summary.dueTodayCount}개`
+    : '오늘 챙길 가사가 없어요';
 }
 
 /** 오늘 할 게 없을 때 (설계 05-B). */

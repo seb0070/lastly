@@ -18,7 +18,7 @@ import { formatShortDate } from '@/lib/date';
 import { EmptyState } from './components/empty-state';
 import { HomeError, HomeSkeleton } from './components/home-states';
 import { HeroCarousel } from './components/hero-carousel';
-import { AllDoneCard, HomeHeader, HomeSummaryLine } from './components/home-header';
+import { AllDoneCard, HomeHeader } from './components/home-header';
 import { LaterSummaryRow, RowGroup, SectionHeader, UpcomingRow } from './components/item-rows';
 
 interface HomeScreenProps {
@@ -142,8 +142,6 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
             ) : (
               <AllDoneCard summary={summary} />
             )}
-
-            <HomeSummaryLine summary={summary} />
 
             {upcoming.length > 0 ? (
               <>
