@@ -5,6 +5,8 @@ import type {
   CommitRequest,
   CommitResult,
   InterpretOutcome,
+  CadencePreviewRequest,
+  CadencePreviewResult,
   InterpretRequest,
   InterpretResult,
   ItemCandidate,
@@ -246,6 +248,28 @@ export class CaptureService {
    * 기존 항목이면 그 항목의 주기를, 새 항목이면 AI 제안을 붙인다.
    * 화면 08/09의 안내 문구가 이 source에 따라 갈린다.
    */
+  /**
+   * 이름만 주고 주기를 물어본다 — 설계 08-B.
+   *
+   * 이미 쓰던 이름이면 그 항목의 주기를 그대로 돌려준다. 사용자가 이름을
+   * 되돌렸을 때 원래 리듬으로 돌아와야지, 같은 일에 새 주기를 제안하면 안 된다.
+   */
+  async previewCadence(userId: string, input: CadencePreviewRequest): Promise<CadencePreviewResult> {
+    const known = await this.items.listActive(userId);
+    const exact = known.find((i) => squash(i.name) === squash(input.name));
+
+    return {
+      matchedItemId: exact?.id ?? null,
+      cadence: await this.resolveCadence(
+        userId,
+        exact ? 'matched_existing' : 'new_item',
+        exact?.id ?? null,
+        input.name,
+        input.doneOn,
+      ),
+    };
+  }
+
   private async resolveCadence(
     userId: string,
     outcome: InterpretOutcome,

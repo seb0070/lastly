@@ -89,3 +89,20 @@ export const commitResultSchema = completeItemResultSchema.extend({
   itemCreated: z.boolean(),
 });
 export type CommitResult = z.infer<typeof commitResultSchema>;
+
+/**
+ * 확인 시트에서 이름을 고쳤을 때 주기를 다시 묻는다 — 설계 08-B.
+ * 이미 쓰던 이름이면 그 항목의 주기로 돌아오고, 처음 보는 이름이면 새로 제안한다.
+ */
+export const cadencePreviewRequestSchema = z.object({
+  name: z.string().min(1).max(60),
+  doneOn: isoDateSchema,
+});
+export type CadencePreviewRequest = z.infer<typeof cadencePreviewRequestSchema>;
+
+export const cadencePreviewResultSchema = z.object({
+  cadence: cadenceSuggestionSchema.nullable(),
+  /** 이미 쓰던 항목이면 그 id. 화면이 "기존 항목" 배지를 바꿔 단다. */
+  matchedItemId: uuidSchema.nullable(),
+});
+export type CadencePreviewResult = z.infer<typeof cadencePreviewResultSchema>;
