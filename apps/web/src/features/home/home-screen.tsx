@@ -103,20 +103,22 @@ export function HomeScreen({ initialFeed }: HomeScreenProps) {
    * 잘못 들었을 때 사용자가 고쳐서 보낼 수 있어야 한다.
    */
   const wasListening = useRef(false);
+  // speech 는 렌더마다 새 객체라 의존성에 두면 효과가 매번 돈다. 필요한 값만 본다.
+  const { listening, transcript, reset: resetSpeech } = speech;
 
   useEffect(() => {
-    const justStopped = wasListening.current && !speech.listening;
-    wasListening.current = speech.listening;
+    const justStopped = wasListening.current && !listening;
+    wasListening.current = listening;
 
     if (!justStopped) return;
 
-    const text = speech.transcript.trim();
+    const text = transcript.trim();
     if (text) {
       setDraft(text);
       inputRef.current?.focus();
     }
-    speech.reset();
-  }, [speech]);
+    resetSpeech();
+  }, [listening, transcript, resetSpeech]);
 
   /**
    * "다시 말하기" — 시트를 닫는 데서 그치지 않고 곧바로 다시 듣기 시작한다.
