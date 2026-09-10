@@ -125,6 +125,7 @@ const config: Config = {
         topline: 'var(--lastly-shadow-topline)',
         listen: 'var(--lastly-ring-listen)',
         input: 'var(--lastly-shadow-input)',
+        'hero-card': 'var(--lastly-shadow-hero-card)',
       },
 
       backgroundImage: {

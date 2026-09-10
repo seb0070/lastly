@@ -89,6 +89,8 @@
 
   /* 그림자 — 설계에서 쓰인 값 그대로 */
   --lastly-shadow-hero: 0 10px 28px rgba(44, 38, 35, 0.1);
+  /* 오늘 챙길 것 캐러셀의 카드 — 목록 카드보다 살짝 더 뜬다 */
+  --lastly-shadow-hero-card: 0 6px 20px rgba(70, 58, 44, 0.05);
   --lastly-shadow-card: 0 4px 16px rgba(70, 58, 44, 0.04);
   --lastly-shadow-action: 0 8px 18px rgba(168, 95, 68, 0.26);
   --lastly-shadow-action-lg: 0 10px 24px rgba(168, 95, 68, 0.28);
