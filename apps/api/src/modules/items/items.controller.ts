@@ -54,9 +54,19 @@ export class ItemsController {
 
   @Delete(':id')
   @HttpCode(204)
-  @ApiOperation({ summary: '항목 삭제' })
+  @ApiOperation({
+    summary: '항목 삭제 — 실제로는 보관 처리',
+    description: '기록까지 함께 잃지 않도록 status 만 archived 로 바꾼다. 되돌리기가 가능하다.',
+  })
   async remove(@CurrentUser('id') userId: string, @Param('id', ParseUUIDPipe) id: string) {
     await this.items.remove(userId, id);
+  }
+
+  @Post(':id/restore')
+  @HttpCode(204)
+  @ApiOperation({ summary: '삭제 되돌리기 — 토스트의 "되돌리기"' })
+  async restore(@CurrentUser('id') userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    await this.items.restore(userId, id);
   }
 
   @Post(':id/complete')

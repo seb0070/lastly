@@ -113,7 +113,11 @@ export class ItemsService {
     return toItem(await this.items.update(userId, itemId, patch), this.cadence, today);
   }
   async remove(userId: string, itemId: string): Promise<void> {
-    await this.items.remove(userId, itemId);
+    await this.items.archive(userId, itemId);
+  }
+
+  async restore(userId: string, itemId: string): Promise<void> {
+    await this.items.restore(userId, itemId);
   }
 
   /** 사용자의 전체 평균 주기 — AI가 개인 성향을 보정할 때 참고한다. */

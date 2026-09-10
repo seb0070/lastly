@@ -105,8 +105,27 @@ export class ItemsRepository {
     return data as ItemRow;
   }
 
-  async remove(userId: string, itemId: string): Promise<void> {
-    const { error } = await this.table.delete().eq('user_id', userId).eq('id', itemId);
+  /**
+   * 지우지 않고 치워 둔다.
+   *
+   * 진짜 DELETE 를 하면 그 항목의 기록이 함께 사라진다. 3년치 이력이
+   * 오타 한 번에 날아가면 되돌릴 방법이 없다. status 만 바꾸면 목록·검색·
+   * 알림에서 모두 빠지므로 사용자가 보기엔 지워진 것과 같고,
+   * 되돌리기는 status 를 되돌리는 것으로 끝난다.
+   */
+  async archive(userId: string, itemId: string): Promise<void> {
+    const { error } = await this.table
+      .update({ status: 'archived' })
+      .eq('user_id', userId)
+      .eq('id', itemId);
+    if (error) throw error;
+  }
+
+  async restore(userId: string, itemId: string): Promise<void> {
+    const { error } = await this.table
+      .update({ status: 'active' })
+      .eq('user_id', userId)
+      .eq('id', itemId);
     if (error) throw error;
   }
 

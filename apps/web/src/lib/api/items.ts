@@ -18,6 +18,7 @@ export const itemsApi = {
   update: (id: string, body: UpdateItemInput) =>
     apiFetch<Item>(`/items/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => apiFetch<void>(`/items/${id}`, { method: 'DELETE' }),
+  restore: (id: string) => apiFetch<void>(`/items/${id}/restore`, { method: 'POST' }),
   complete: (id: string) =>
     apiFetch<CompleteItemResult>(`/items/${id}/complete`, { method: 'POST' }),
 
