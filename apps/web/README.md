@@ -34,9 +34,10 @@ src/
 │   ├── items/            상세 + 기록 편집
 │   ├── onboarding/       소개 · 설치 안내 · 알림 권한
 │   ├── auth/             개발용 로그인
+│   ├── ai-credential/    AI 키 등록 · 남은 무료 횟수
 │   └── notifications/    웹푸시 구독
 │
-├── components/ui/    Sheet, Toast, Button, Badge
+├── components/ui/    Sheet, Toast
 ├── hooks/            서비스워커 등록
 └── lib/
     ├── api/          api 호출 (client는 브라우저, server는 서버 컴포넌트용)
@@ -83,12 +84,17 @@ return <HomeScreen initialFeed={initialFeed} />;
 ### accent는 주황이 아니다
 
 ```
-accent  #4A433F   웜 그레이 — 기본 강조
-action  #B0552F   주황 — 주 액션 버튼과 임박 배지에만
-sage    #5A6347   안심 신호 ("백업됨", 다음 예정일)
+accent      #4a433f   웜 그레이 — 기본 강조
+accent-ink  #9a4f31   강조 글자
+action      #a85f44   테라코타 — 주 액션 버튼과 임박 배지에만
+danger      #b3402c   지난 항목(D+n)과 삭제
+sage        #d4836a   보조 점·표식
 ```
 
 주황을 전면에 깔면 화면 인상이 설계와 완전히 달라진다.
+
+> 개정 설계에서 팔레트가 통째로 바뀌었다. 예전 값(`#b0552f`, `#5a6347`)은
+> 지금 설계 파일에 **한 번도 나오지 않는다.** 옛 색이 보이면 개정 전 코드다.
 
 ### 소수점 크기와 음수 자간을 반올림하지 않는다
 
