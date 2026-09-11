@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
@@ -90,6 +91,19 @@ function LoginScreen() {
           />
           {pending === 'google' ? '연결하는 중…' : '구글로 계속하기'}
         </button>
+
+        {/* 계정을 만들기 전에 읽을 수 있어야 하는 문서다. 로그인 없이 열린다. */}
+        <p className="mt-1 text-center text-12 text-ink-3">
+          계속하면{' '}
+          <Link href="/legal/terms" className="underline underline-offset-2">
+            이용약관
+          </Link>
+          과{' '}
+          <Link href="/legal/privacy" className="underline underline-offset-2">
+            개인정보처리방침
+          </Link>
+          에 동의하는 것으로 봅니다.
+        </p>
       </div>
     </main>
   );
