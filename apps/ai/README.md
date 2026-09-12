@@ -177,7 +177,8 @@ None (apps/api 가 기본값으로 폴백)
 | `VOYAGE_API_KEY` | 임베딩 없이 트라이그램만 |
 | `DATABASE_URL` | `priors` 캐시를 못 읽고 못 쓴다. 매번 새로 조사 |
 | `INTERNAL_TOKEN` | 기본값으로 뜬다 — 배포에선 반드시 정한다 |
-| `AI_MODEL` | `claude-opus-5` (Anthropic 어댑터에만 쓴다) |
+| `ANTHROPIC_MODEL` · `OPENAI_MODEL` · `GEMINI_MODEL` | 어댑터 기본값 사용 |
+| `ANTHROPIC_EFFORT` | 보내지 않음 — Haiku 등은 이 값을 받으면 400 |
 
 **LLM 키는 여기 없다.** 요청의 `caller` 로 온다. 무료 체험용 서버 키를 두는 곳은
 `apps/api` 의 `ANTHROPIC_API_KEY` 다.
