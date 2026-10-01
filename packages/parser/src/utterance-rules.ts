@@ -464,6 +464,13 @@ const DONE_MARKERS = /(?:끝냈|끝내|마쳤|마무리했|해치웠|완료했)[
 const TIME_EXPR =
   /(\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일|\b\d{4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2}\b|\b\d{1,2}\s*월\s*\d{1,2}\s*일|아침|점심|저녁|밤|새벽|오전|오후|오늘|내일|모레|주말(?:에)?|어제|어저께|그저께|그제|그끄저께|그그제|방금|아까|막|마지막으로|(?:지난|저번|작)\s*주\s*[월화수목금토일]\s*(?:요일|욜)(?:날)?|(?:지난|저번|작)\s*주|(?:다음|이번)\s*주(?:부터)?|(?:지난|저번)\s*달|작년|[월화수목금토일]\s*(?:요일|욜)(?:날)?|\d+\s*(?:일|주일|주|개월|달|년)\s*전|하루\s*전|이틀\s*전|사흘\s*전|나흘\s*전|열흘\s*전)/g;
 
+/** 여러 행동을 나눴을 때 뒤 절에도 이어 붙일 수 있는 문장 앞 날짜. */
+const LEADING_DATE =
+  /^(?:(?:나는|나|내가|저는|제가)\s*)?(?:오늘|내일|모레|어제|어저께|그저께|그제|그끄저께|방금|아까|(?:지난|저번|작|다음)\s*주(?:\s*[월화수목금토일]\s*(?:요일|욜)(?:날)?)?|(?:지난|저번)\s*달|작년|[월화수목금토일]\s*(?:요일|욜)(?:날)?|\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일|\d{4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2}|\d{1,2}\s*월\s*\d{1,2}\s*일|\d+\s*(?:일|주일|주|개월|달|년)\s*전|하루\s*전|이틀\s*전|사흘\s*전|나흘\s*전|열흘\s*전)\s*(?:에)?/;
+
+/** "그리고"·쉼표로 이어진 여러 행동을 개별 입력으로 만든다. */
+const MULTI_ACTION_SEPARATOR = /\s*(?:그리고|또)\s*|[,，、;；。!?！？\n]+/g;
+
 /**
  * 말버릇으로 붙는 1인칭 주어. 항목 이름에 들어갈 자리가 아니다.
  * 한 낱말 전체가 일치할 때만 지운다 — "나무 물 주기" 의 "나무" 를 건드리면 안 된다.
@@ -625,4 +632,30 @@ export function readUtterance(text: string, reference: Date): UtteranceFacts {
     sawDate: saw,
     sawAction,
   };
+}
+
+/**
+ * 한 입력에 여러 행동이 들어오면 확인·저장 단위를 나눈다.
+ *
+ * 날짜가 첫 절에만 적힌 경우에는 뒤 절에도 같은 날짜를 붙인다.
+ * "일요일 책읽음 그리고 주방후드 청소함" 을 두 건의 일요일 기록으로
+ * 해석해야 하고, "일요일 책읽음, 토요일 주방후드 청소함" 은 각 날짜를
+ * 그대로 보존해야 한다.
+ */
+export function splitUtterances(text: string): string[] {
+  const parts = text
+    .split(MULTI_ACTION_SEPARATOR)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) return parts;
+
+  const sharedDate = parts[0]!.match(LEADING_DATE)?.[0].trim();
+  if (!sharedDate) return parts;
+
+  const dateReference = new Date(2000, 0, 1);
+  return parts.map((part, index) => {
+    if (index === 0 || readDaysAgo(part, dateReference).saw) return part;
+    return `${sharedDate} ${part}`.trim();
+  });
 }
