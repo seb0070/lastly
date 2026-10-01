@@ -15,6 +15,7 @@ import {
 
 /** 2026-09-13 은 일요일. 요일 계산이 걸린 케이스의 기준일이다. */
 const SUN = new Date(2026, 8, 13);
+const MON = new Date(2026, 8, 14);
 
 describe('주기 읽기', () => {
   it.each([
@@ -58,6 +59,15 @@ describe('날짜 읽기', () => {
     ['이틀 전에 했어', 2],
   ])('%s → %s일 전', (text, days) => {
     expect(readDaysAgo(text, SUN).daysAgo).toBe(days);
+  });
+
+  it.each([
+    ['일욜 청소기 돌렸어', 1, '청소기 돌리기'],
+    ['일욜에 청소기 돌렸어', 1, '청소기 돌리기'],
+    ['일요일 청소기 돌렸어', 1, '청소기 돌리기'],
+  ])('%s를 지난 일요일의 기록으로 읽는다', (text, days, name) => {
+    expect(readDaysAgo(text, MON)).toEqual({ daysAgo: days, saw: true });
+    expect(readName(text)).toBe(name);
   });
 
   it('지난주 요일은 기준일에서 거슬러 센다', () => {
@@ -144,6 +154,7 @@ describe('이름 읽기', () => {
   it.each([
     ['나 오늘 책 읽었고 일주일에 한번씩 읽을거야', '책 읽기', 7],
     ['주방후드 청소했고 다음주부터 일주일에 한번씩할거야', '주방후드 청소', 7],
+    ['일요일 책읽음', '책 읽기', null],
     ['내일 방 청소할 거야', '방 청소', null],
     ['모레 이불 빨 거야', '이불 빨래', null],
     ['주 1회 필터 갈았어', '필터 교체', 7],
@@ -152,6 +163,17 @@ describe('이름 읽기', () => {
     const got = readNameWithAction(text);
     expect(got).toEqual({ name, sawAction: true });
     if (cadenceDays !== null) expect(readCadenceDays(text)).toBe(cadenceDays);
+  });
+
+  it('붙여 쓴 읽음도 완료 행동으로 읽는다', () => {
+    expect(readUtterance('일요일 책읽음', SUN)).toMatchObject({
+      daysAgo: 0,
+      sawDate: true,
+      name: '책 읽기',
+      sawAction: true,
+      willSave: true,
+      saveKind: 'completed',
+    });
   });
 });
 

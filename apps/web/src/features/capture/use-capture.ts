@@ -1,6 +1,7 @@
 'use client';
 
 import type { CadenceRule, CommitResult, InterpretResult } from '@lastly/contracts';
+import { splitUtterances } from '@lastly/parser';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 
@@ -23,6 +24,13 @@ import { resolveOffline } from '@/lib/offline/resolve-offline';
 
 /** 주기를 정하지 않고 저장했을 때. 서버의 FALLBACK_CADENCE 와 같은 값이다. */
 const FALLBACK_RULE: CadenceRule = { unit: 'week', interval: 2, weekdays: [], notifyTimeLocal: null };
+
+type CaptureInput = {
+  text: string;
+  mode: 'voice' | 'text';
+  asrConfidence?: number;
+  knownItems?: OnDeviceKnownItem[];
+};
 
 /**
  * 입력 → 해석 → 확인 → 저장의 한 사이클을 담는다.
@@ -60,6 +68,8 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   const [pendingSaved, setPendingSaved] = useState<string | null>(null);
   /** 예정·못 함처럼 저장하지 않는 말. */
   const [deferredMessage, setDeferredMessage] = useState<string | null>(null);
+  /** 한 입력에서 나뉜 뒤 이어서 해석할 문장들. 각 문장은 별도 확인·저장한다. */
+  const batchQueue = useRef<CaptureInput[]>([]);
 
   const interpret = useMutation({
     /**
@@ -70,12 +80,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
      * 실패로 떨어져야 아래 onError 에서 문장을 적어 둘 수 있다.
      */
     networkMode: 'always',
-    mutationFn: async (input: {
-      text: string;
-      mode: 'voice' | 'text';
-      asrConfidence?: number;
-      knownItems?: OnDeviceKnownItem[];
-    }) => {
+    mutationFn: async (input: CaptureInput) => {
       const started = performance.now();
       const local = await interpretLocally(input.text, todayIso(), input.knownItems ?? []);
 
@@ -102,9 +107,9 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
       if (abandoned.current) return;
       if ('deferred' in data) {
         setDeferredMessage(data.deferred);
-        setStep('idle');
         speak(data.deferred);
         onInterpreted?.();
+        if (!advanceBatch()) setStep('idle');
         return;
       }
       setResult(data);
@@ -146,8 +151,8 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
           setPendingSaved('적어뒀어요 · 잠시 뒤 정리할게요');
         }
 
-        setStep('idle');
         onInterpreted?.();
+        if (!advanceBatch()) setStep('idle');
         return;
       }
 
@@ -158,6 +163,24 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
       onInterpreted?.();
     },
   });
+
+  /** 다음 행동을 해석한다. 현재 행동을 저장하거나 건너뛴 뒤에만 호출된다. */
+  function advanceBatch(): boolean {
+    const next = batchQueue.current.shift();
+    if (!next) return false;
+    interpret.mutate(next);
+    return true;
+  }
+
+  /** 여러 행동은 첫 항목부터 확인 시트에 보여주고, 저장 후 다음 항목으로 넘어간다. */
+  const startInterpret = useCallback(
+    (input: CaptureInput) => {
+      const [first, ...rest] = splitUtterances(input.text);
+      batchQueue.current = rest.map((text) => ({ ...input, text }));
+      interpret.mutate({ ...input, text: first ?? input.text });
+    },
+    [interpret],
+  );
 
   const commit = useMutation({
     mutationFn: async (input: {
@@ -220,9 +243,10 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
     },
     onSuccess: async (data) => {
       setCommitted(data);
-      setStep('idle');
       setResult(null);
+      setCadenceOverride(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.home });
+      if (!advanceBatch()) setStep('idle');
     },
   });
 
@@ -295,6 +319,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   const saveRaw = useMutation({
     onMutate: () => {
       abandoned.current = true;
+      batchQueue.current = [];
     },
     mutationFn: (name: string) =>
       itemsApi.create({
@@ -313,6 +338,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   });
 
   const cancel = useCallback(() => {
+    batchQueue.current = [];
     setStep('idle');
     setResult(null);
     setCadenceOverride(null);
@@ -340,7 +366,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
      */
     cadenceFixed: cadenceOverride !== null || result?.cadence?.source === 'user',
     setCadenceOverride,
-    interpret: interpret.mutate,
+    interpret: startInterpret,
     interpreting: interpret.isPending,
     commit: commit.mutate,
     committing: commit.isPending || answerCandidate.isPending,

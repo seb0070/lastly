@@ -241,7 +241,9 @@ function resolveDate(text: string, reference: Date): ResolvedDate {
    * "지난주 일요일" — 기준일에서 거슬러 올라가 가장 가까운 그 요일을 찾고,
    * 그게 이번 주 안이면 한 주 더 뺀다. "지난" 이 붙었으니 최소 7일 전이다.
    */
-  const lastWeekday = t.match(/(?:지난|저번|작)\s*주\s*([월화수목금토일])\s*요일/);
+  const lastWeekday = t.match(
+    /(?:지난|저번|작)\s*(?:주\s*)?([월화수목금토일])\s*(?:요일|욜)(?:날)?/,
+  );
   if (lastWeekday) {
     const target = WEEKDAYS.indexOf(lastWeekday[1]!);
     const diff = (reference.getDay() + 6) % 7; // 월=0 으로 맞춘다
@@ -251,7 +253,7 @@ function resolveDate(text: string, reference: Date): ResolvedDate {
   }
 
   // 요일만 말한 경우 — "일요일에 했어". 이번 주 안에서 거슬러 올라간다.
-  const weekdayOnly = t.match(/([월화수목금토일])\s*요일/);
+  const weekdayOnly = t.match(/([월화수목금토일])\s*(?:요일|욜)(?:날)?/);
   if (weekdayOnly) {
     const target = WEEKDAYS.indexOf(weekdayOnly[1]!);
     const diff = (reference.getDay() + 6) % 7;
@@ -332,6 +334,7 @@ const UNCERTAIN = [
 
 const COMPLETED = [
   /했고/, /했어/, /했다/, /했어요/, /했습니다/, /했음/, /해놨어/,
+  /읽음/,
   /끝냈어/, /갈았어/, /빨았어/, /빨아놨어/, /버렸어/, /돌렸어/, /시켰어/, /닦았어/,
   /함(?:\s|[.,!?~…]|$)/,
 ];
@@ -421,7 +424,7 @@ const ACTION_NOUNS: Array<[RegExp, string]> = [
   // 좁은 것부터 본다. "빨래 널었어" 의 "빨래" 가 동사로 먹히면 안 된다.
   [/널(?:었|어|을|기)[가-힣]*/, '널기'],
   [/깎(?:았|아|을|기)[가-힣]*/, '깎기'],
-  [/읽(?:었|어|을|기)[가-힣]*/, '읽기'],
+  [/읽(?:었|어|을|기|음)[가-힣]*/, '읽기'],
   // "이불 갰어" 는 개어 두는 일이므로 정리로 묶는다. 사전의 "이불 정리" 와 만난다.
   [/갰[가-힣]*|개(?:어|었)[가-힣]*/, '정리'],
   // "워셔액 넣었어", "세제 채웠어" — 다 떨어져 다시 채우는 일이다.
@@ -459,7 +462,14 @@ const DONE_MARKERS = /(?:끝냈|끝내|마쳤|마무리했|해치웠|완료했)[
 
 /** 이름에 들어가면 안 되는 시간 표현. */
 const TIME_EXPR =
-  /(\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일|\b\d{4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2}\b|\b\d{1,2}\s*월\s*\d{1,2}\s*일|아침|점심|저녁|밤|새벽|오전|오후|오늘|내일|모레|주말(?:에)?|어제|어저께|그저께|그제|그끄저께|그그제|방금|아까|막|마지막으로|(?:지난|저번|작)\s*주\s*[월화수목금토일]\s*요일|(?:지난|저번|작)\s*주|(?:다음|이번)\s*주(?:부터)?|(?:지난|저번)\s*달|작년|[월화수목금토일]\s*요일|\d+\s*(?:일|주일|주|개월|달|년)\s*전|하루\s*전|이틀\s*전|사흘\s*전|나흘\s*전|열흘\s*전)/g;
+  /(\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일|\b\d{4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2}\b|\b\d{1,2}\s*월\s*\d{1,2}\s*일|아침|점심|저녁|밤|새벽|오전|오후|오늘|내일|모레|주말(?:에)?|어제|어저께|그저께|그제|그끄저께|그그제|방금|아까|막|마지막으로|(?:지난|저번|작)\s*주\s*[월화수목금토일]\s*(?:요일|욜)(?:날)?|(?:지난|저번|작)\s*주|(?:다음|이번)\s*주(?:부터)?|(?:지난|저번)\s*달|작년|[월화수목금토일]\s*(?:요일|욜)(?:날)?|\d+\s*(?:일|주일|주|개월|달|년)\s*전|하루\s*전|이틀\s*전|사흘\s*전|나흘\s*전|열흘\s*전)/g;
+
+/** 여러 행동을 나눴을 때 뒤 절에도 이어 붙일 수 있는 문장 앞 날짜. */
+const LEADING_DATE =
+  /^(?:(?:나는|나|내가|저는|제가)\s*)?(?:오늘|내일|모레|어제|어저께|그저께|그제|그끄저께|방금|아까|(?:지난|저번|작|다음)\s*주(?:\s*[월화수목금토일]\s*(?:요일|욜)(?:날)?)?|(?:지난|저번)\s*달|작년|[월화수목금토일]\s*(?:요일|욜)(?:날)?|\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일|\d{4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2}|\d{1,2}\s*월\s*\d{1,2}\s*일|\d+\s*(?:일|주일|주|개월|달|년)\s*전|하루\s*전|이틀\s*전|사흘\s*전|나흘\s*전|열흘\s*전)\s*(?:에)?/;
+
+/** "그리고"·쉼표로 이어진 여러 행동을 개별 입력으로 만든다. */
+const MULTI_ACTION_SEPARATOR = /\s*(?:그리고|또)\s*|[,，、;；。!?！？\n]+/g;
 
 /**
  * 말버릇으로 붙는 1인칭 주어. 항목 이름에 들어갈 자리가 아니다.
@@ -622,4 +632,52 @@ export function readUtterance(text: string, reference: Date): UtteranceFacts {
     sawDate: saw,
     sawAction,
   };
+}
+
+/**
+ * 한 입력에 여러 행동이 들어오면 확인·저장 단위를 나눈다.
+ *
+ * 날짜가 첫 절에만 적힌 경우에는 뒤 절에도 같은 날짜를 붙인다.
+ * "일요일 책읽음 그리고 주방후드 청소함" 을 두 건의 일요일 기록으로
+ * 해석해야 하고, "일요일 책읽음, 토요일 주방후드 청소함" 은 각 날짜를
+ * 그대로 보존해야 한다.
+ */
+export function splitUtterances(text: string): string[] {
+  const explicitParts = text
+    .split(MULTI_ACTION_SEPARATOR)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const parts = explicitParts.flatMap(splitCompletedConjunction);
+
+  if (parts.length <= 1) return parts;
+
+  const sharedDate = parts[0]!.match(LEADING_DATE)?.[0].trim();
+  if (!sharedDate) return parts;
+
+  const dateReference = new Date(2000, 0, 1);
+  return parts.map((part, index) => {
+    if (index === 0 || readDaysAgo(part, dateReference).saw) return part;
+    return `${sharedDate} ${part}`.trim();
+  });
+}
+
+/** 완료된 두 절을 잇는 "-고"도 양쪽이 실제 행동일 때만 나눈다. */
+function splitCompletedConjunction(text: string): string[] {
+  const reference = new Date(2000, 0, 1);
+  for (const match of text.matchAll(/고(?=\s+)/g)) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+
+    // "읽었고"의 고는 앞 행동의 완료 표지로 남겨야 한다.
+    const left = text.slice(0, index + 1).trim();
+    const right = text.slice(index + 1).trim();
+    const leftFacts = readUtterance(left, reference);
+    const rightFacts = readUtterance(right, reference);
+    if (!leftFacts.willSave || !leftFacts.sawAction || !rightFacts.willSave || !rightFacts.sawAction) {
+      continue;
+    }
+
+    return [left, ...splitCompletedConjunction(right)];
+  }
+  return [text];
 }
