@@ -32,6 +32,13 @@ describe('여러 행동 골든 테스트', () => {
         { text: '내일 주방후드 청소할 거야', name: '주방후드 청소', daysAgo: 0, willSave: false },
       ],
     ],
+    [
+      '오늘 책 읽었고 주방후드 청소했어',
+      [
+        { text: '오늘 책 읽었고', name: '책 읽기', daysAgo: 0, willSave: true },
+        { text: '오늘 주방후드 청소했어', name: '주방후드 청소', daysAgo: 0, willSave: true },
+      ],
+    ],
   ] as const)('%s를 각각 해석한다', (text, expected) => {
     expect(splitUtterances(text)).toEqual(expected.map((part) => part.text));
 

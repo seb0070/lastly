@@ -643,10 +643,11 @@ export function readUtterance(text: string, reference: Date): UtteranceFacts {
  * 그대로 보존해야 한다.
  */
 export function splitUtterances(text: string): string[] {
-  const parts = text
+  const explicitParts = text
     .split(MULTI_ACTION_SEPARATOR)
     .map((part) => part.trim())
     .filter(Boolean);
+  const parts = explicitParts.flatMap(splitCompletedConjunction);
 
   if (parts.length <= 1) return parts;
 
@@ -658,4 +659,25 @@ export function splitUtterances(text: string): string[] {
     if (index === 0 || readDaysAgo(part, dateReference).saw) return part;
     return `${sharedDate} ${part}`.trim();
   });
+}
+
+/** 완료된 두 절을 잇는 "-고"도 양쪽이 실제 행동일 때만 나눈다. */
+function splitCompletedConjunction(text: string): string[] {
+  const reference = new Date(2000, 0, 1);
+  for (const match of text.matchAll(/고(?=\s+)/g)) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+
+    // "읽었고"의 고는 앞 행동의 완료 표지로 남겨야 한다.
+    const left = text.slice(0, index + 1).trim();
+    const right = text.slice(index + 1).trim();
+    const leftFacts = readUtterance(left, reference);
+    const rightFacts = readUtterance(right, reference);
+    if (!leftFacts.willSave || !leftFacts.sawAction || !rightFacts.willSave || !rightFacts.sawAction) {
+      continue;
+    }
+
+    return [left, ...splitCompletedConjunction(right)];
+  }
+  return [text];
 }
