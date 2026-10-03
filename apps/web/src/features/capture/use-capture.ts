@@ -14,6 +14,7 @@ import {
 import type { OnDeviceKnownItem } from '@/features/on-device/types';
 import { speak } from '@/features/on-device/voice-guidance';
 import { captureApi } from '@/lib/api/capture';
+import { ApiError } from '@/lib/api/client';
 import { itemsApi } from '@/lib/api/items';
 import { queryKeys } from '@/lib/api/query-keys';
 import { todayIso } from '@/lib/date';
@@ -60,6 +61,8 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   const [pendingSaved, setPendingSaved] = useState<string | null>(null);
   /** 예정·못 함처럼 저장하지 않는 말. */
   const [deferredMessage, setDeferredMessage] = useState<string | null>(null);
+  /** 저장이 거절된 이유. 확인 시트에 그대로 보인다. */
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   const interpret = useMutation({
     /**
@@ -95,6 +98,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
     },
     onMutate: (input) => {
       abandoned.current = false;
+      setCommitError(null);
       setLastMode(input.mode);
       setStep('interpreting');
     },
@@ -166,8 +170,13 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
       note?: string | null;
       /** 확인 시트가 실제로 보여준 주기. 보이는 것과 저장되는 것이 갈리지 않게 한다. */
       cadence?: CadenceRule;
+      /** 말로 "응" 해서 저장했는지. 화면을 안 보고 있으니 결과를 소리로 알린다. */
+      announce?: boolean;
+      /** 확인 시트에서 고친 한 날짜. 없으면 말에서 읽은 날짜. */
+      doneOn?: string;
     }) => {
       if (!result) throw new Error('해석 결과가 없습니다.');
+      const doneOn = input.doneOn ?? result.doneOn;
 
       /**
        * 새 항목에는 화면에 보여준 주기를 그대로 실어 보낸다.
@@ -193,10 +202,10 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
         const name = input.newItemName ?? result.normalizedName ?? '';
 
         if (input.itemId) {
-          addResolved(input.itemId, name, result.doneOn);
-          applyLocalLog(input.itemId, result.doneOn, todayIso());
+          addResolved(input.itemId, name, doneOn);
+          applyLocalLog(input.itemId, doneOn, todayIso());
         } else {
-          addNewItem(name, cadence ?? FALLBACK_RULE, result.doneOn);
+          addNewItem(name, cadence ?? FALLBACK_RULE, doneOn);
         }
 
         return {
@@ -213,12 +222,18 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
         draftToken: result.draftToken,
         itemId: input.itemId,
         newItemName: input.newItemName,
-        doneOn: result.doneOn,
+        doneOn,
         cadence: cadence ?? undefined,
         note: input.note ?? null,
       });
     },
-    onSuccess: async (data) => {
+    onMutate: () => setCommitError(null),
+    onError: (error, input) => {
+      setCommitError(error instanceof ApiError ? error.message : '저장하지 못했어요. 다시 눌러주세요.');
+      if (input.announce) speak('저장하지 못했어요');
+    },
+    onSuccess: async (data, input) => {
+      if (input.announce) speak('기록했어요');
       setCommitted(data);
       setStep('idle');
       setResult(null);
@@ -313,6 +328,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
   });
 
   const cancel = useCallback(() => {
+    setCommitError(null);
     setStep('idle');
     setResult(null);
     setCadenceOverride(null);
@@ -344,6 +360,7 @@ export function useCapture({ onInterpreted }: { onInterpreted?: () => void } = {
     interpreting: interpret.isPending,
     commit: commit.mutate,
     committing: commit.isPending || answerCandidate.isPending,
+    commitError,
     chooseCandidate,
     createAsNew,
     saveRaw: saveRaw.mutate,

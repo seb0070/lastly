@@ -1,14 +1,22 @@
 'use client';
 
-import type { CadenceRule, InterpretResult } from '@lastly/contracts';
-import { useQuery } from '@tanstack/react-query';
+import type { CadenceRule, HomeFeed, InterpretResult } from '@lastly/contracts';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { Sheet, SheetActions, SheetHeader, SheetRow } from '@/components/ui/sheet';
+import { Sheet, SheetActions, SheetError, SheetHeader, SheetRow } from '@/components/ui/sheet';
 import { useSpokenConfirm } from '@/features/on-device/use-spoken-confirm';
 import { captureApi } from '@/lib/api/capture';
+import { queryKeys } from '@/lib/api/query-keys';
 import { cn } from '@/lib/cn';
-import { describeCadence, formatShortDate, ruleToDays, todayIso } from '@/lib/date';
+import {
+  describeCadence,
+  formatShortDate,
+  laterDate,
+  nextDueAfter,
+  ruleToDays,
+  todayIso,
+} from '@/lib/date';
 
 import { CadenceSheet } from './cadence-sheet';
 
@@ -24,11 +32,15 @@ interface ConfirmSheetProps {
     newItemName?: string;
     note?: string | null;
     cadence?: CadenceRule;
+    doneOn?: string;
+    announce?: boolean;
   }) => void;
   onRetry: () => void;
   /** 취소 버튼·음성 "아니" — 저장하지 않고 시트만 닫는다. */
   onCancel?: () => void;
   committing: boolean;
+  /** 저장이 거절된 이유. 있으면 응/아니 듣기를 다시 켜지 않는다. */
+  error?: string | null;
   mode?: 'voice' | 'text';
 }
 
@@ -48,11 +60,21 @@ export function ConfirmSheet({
   onRetry,
   onCancel,
   committing,
+  error = null,
   mode = 'text',
 }: ConfirmSheetProps) {
   const [cadenceOpen, setCadenceOpen] = useState(false);
   const [name, setName] = useState(result.normalizedName ?? '');
   const [note, setNote] = useState('');
+  /** 한 날짜 — 설계 08/09 의 꺾쇠 줄. 말로 들은 날짜에서 시작해 기기 달력으로 고친다. */
+  const [doneOn, setDoneOn] = useState(result.doneOn);
+
+  /**
+   * 오늘은 서버가 본 날짜를 쓴다. 서버가 미래 날짜를 거절하므로 기기 시계와 어긋나면
+   * 화면에서는 고를 수 있는데 저장이 막히는 날이 생긴다.
+   */
+  const feed = useQueryClient().getQueryData<HomeFeed>(queryKeys.home);
+  const today = feed?.today ?? todayIso();
 
   /**
    * 이름을 고치면 주기를 다시 맞춘다 — 설계 08-B.
@@ -80,11 +102,11 @@ export function ConfirmSheet({
   const fixedDays = cadenceFixed && cadence ? ruleToDays(cadence) : null;
 
   const preview = useQuery({
-    queryKey: ['cadence-preview', edited, result.doneOn, fixedDays],
+    queryKey: ['cadence-preview', edited, doneOn, fixedDays],
     queryFn: () =>
       captureApi.previewCadence({
         name: edited!,
-        doneOn: result.doneOn,
+        doneOn,
         statedCadenceDays: fixedDays,
       }),
     enabled: Boolean(edited),
@@ -97,20 +119,36 @@ export function ConfirmSheet({
   const isNew = matchedId === null;
   // 사용자가 주기 시트에서 직접 고른 값이 언제나 우선한다.
   const shownRule = edited ? (shown?.rule ?? null) : cadence;
+
+  /**
+   * 다음 예정일은 저장 뒤 실제로 잡힐 날을 보인다.
+   * DB 는 가장 최근 기록에서 다음 날을 센다. 기존 항목에 더 최근 기록이 있으면
+   * 지난 날짜를 더해도 예정일은 그대로다.
+   */
+  const baseDate = laterDate(isNew ? null : findLastDoneOn(feed, matchedId), doneOn);
+  const keepsSchedule = baseDate !== doneOn;
+  const nextDueOn = shownRule ? nextDueAfter(baseDate, shownRule) : null;
+
   const confirmPayload = {
     ...(isNew
       ? { newItemName: name.trim(), cadence: shownRule ?? undefined }
       : { itemId: matchedId ?? undefined }),
     note: note.trim() || null,
+    doneOn,
   };
-  const rationaleText = edited
-    ? '이름을 고치면 주기를 다시 맞춰드려요. 이미 쓰던 항목이면 원래 주기로 돌아와요.'
-    : (shown?.rationale ?? '');
+  const rationaleText = keepsSchedule
+    ? '더 최근 기록이 있어 다음 알림은 그대로예요.'
+    : edited
+      ? '이름을 고치면 주기를 다시 맞춰드려요. 이미 쓰던 항목이면 원래 주기로 돌아와요.'
+      : (shown?.rationale ?? '');
 
   const stopListening = useSpokenConfirm({
-    enabled: open && mode === 'voice' && !committing && !cadenceOpen && Boolean(name.trim()),
-    prompt: `${(result.normalizedName ?? name.trim()) || '이 일'}, ${dayLabel(result.doneOn)}로 기록할까요?`,
-    onYes: () => onConfirm(confirmPayload),
+    // 저장이 거절된 뒤 다시 켜면 같은 질문을 또 읽고, 응 하면 같은 거절이 되풀이된다.
+    enabled:
+      open && mode === 'voice' && !committing && !error && !cadenceOpen && Boolean(name.trim()),
+    // 입력 중인 이름을 따라가지 않는다. 바뀔 때마다 처음부터 다시 읽는다.
+    prompt: `${result.normalizedName || '이 일'}, ${dayLabel(result.doneOn)}로 기록할까요?`,
+    onYes: () => onConfirm({ ...confirmPayload, announce: true }),
     onNo: () => (onCancel ?? onRetry)(),
   });
 
@@ -161,8 +199,26 @@ export function ConfirmSheet({
         <div className="mt-3 border-t border-line">
           <SheetRow
             label="한 날짜"
-            value={`${dayLabel(result.doneOn)} · ${formatShortDate(result.doneOn)}`}
+            value={`${dayLabel(doneOn)} · ${formatShortDate(doneOn)}`}
             divider
+            control={
+              <input
+                type="date"
+                value={doneOn}
+                max={today}
+                aria-label="한 날짜"
+                disabled={committing}
+                // 화면을 만지면 응/아니 듣기를 끝낸다. 고른 뒤 "응" 이 바뀌기 전 질문에 답이 되지 않게.
+                onPointerDown={stopListening}
+                onFocus={stopListening}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  // 지우기 버튼으로 빈 값이 오거나, max 를 무시하는 브라우저에서 미래가 올 수 있다.
+                  if (next && next <= today) setDoneOn(next);
+                }}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            }
           />
           {checking ? (
             <div className="flex items-center justify-between py-4">
@@ -179,8 +235,8 @@ export function ConfirmSheet({
             <SheetRow
               label="관리 주기"
               value={
-                shownRule
-                  ? `${describeCadence(shownRule)} · 다음 ${shown ? formatShortDate(shown.nextDueOn) : '—'}`
+                shownRule && nextDueOn
+                  ? `${describeCadence(shownRule)} · 다음 ${formatShortDate(nextDueOn)}`
                   : '설정 안 됨'
               }
               onClick={() => setCadenceOpen(true)}
@@ -215,11 +271,17 @@ export function ConfirmSheet({
           </div>
         ) : null}
 
+        <SheetError message={error} className="mt-3" />
+
         <SheetActions
           primary={{
             label: committing ? '저장하는 중…' : '이대로 저장하기',
             disabled: committing || !name.trim(),
-            onClick: () => onConfirm(confirmPayload),
+            // 누른 순간 응/아니 듣기를 끝낸다. 남아 있으면 같은 저장이 한 번 더 나간다.
+            onClick: () => {
+              stopListening();
+              onConfirm(confirmPayload);
+            },
           }}
           secondary={{
             label: '다시 말하기',
@@ -238,7 +300,7 @@ export function ConfirmSheet({
           open
           itemName={name}
           transcript={result.transcript}
-          doneOn={result.doneOn}
+          doneOn={doneOn}
           value={cadence}
           onChange={(rule) => {
             onCadenceChange(rule);
@@ -249,6 +311,13 @@ export function ConfirmSheet({
       ) : null}
     </>
   );
+}
+
+/** 홈 피드에서 그 항목의 마지막 기록일. 피드가 없거나 항목이 없으면 null. */
+function findLastDoneOn(feed: HomeFeed | undefined, itemId: string | null): string | null {
+  if (!feed || !itemId) return null;
+  const item = [...feed.due, ...feed.upcoming, ...feed.later].find((i) => i.id === itemId);
+  return item?.lastDoneOn ?? null;
 }
 
 /**

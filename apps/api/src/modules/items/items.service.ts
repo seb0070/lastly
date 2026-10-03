@@ -15,6 +15,7 @@ import { CadenceService } from '../cadence/cadence.service';
 import { LogsRepository } from './logs.repository';
 import { toCadenceRule, toItem } from './items.mapper';
 import { ItemsRepository } from './items.repository';
+import { assertNotFuture } from './logs.service';
 import { appToday } from '../../common/clock';
 
 /** 리듬을 볼 때 거슬러 올라가는 기록 수. 오래된 습관까지 끌고 오지 않는다. */
@@ -44,7 +45,7 @@ export class ItemsService {
    * 주기를 들여다보는 자리는 상세 하나뿐이므로 거기서만 센다.
    */
   async findOne(userId: string, itemId: string, today = appToday()): Promise<Item> {
-    const row = await this.items.findById(userId, itemId);
+    const row = await this.items.findActiveById(userId, itemId);
     const item = toItem(row, this.cadence, today);
 
     const logs = await this.logs.listByItem(userId, itemId, DRIFT_LOG_WINDOW).catch(() => []);
@@ -126,6 +127,8 @@ export class ItemsService {
 
   async create(userId: string, input: CreateItemInput, today = appToday()): Promise<Item> {
     await this.assertNameFree(userId, input.name);
+    // 항목을 만들기 전에 막는다. 기록에서 거절되면 빈 항목만 남는다.
+    if (input.firstDoneOn) assertNotFuture(input.firstDoneOn, today);
 
     // 임베딩은 있으면 좋고 없어도 되는 값이다. 실패해도 항목 생성은 진행한다.
     const embedding = (await this.ai.embed(input.name))?.embedding ?? null;
@@ -146,12 +149,13 @@ export class ItemsService {
   }
 
   async update(userId: string, itemId: string, input: UpdateItemInput, today = appToday()): Promise<Item> {
+    // 지운 항목은 고치지 않는다. 되살리기는 restore 로만.
+    const current = await this.items.findActiveById(userId, itemId);
     const patch: Record<string, unknown> = {};
 
     const name = input.name?.trim();
     if (name) {
       patch.name = name;
-      const current = await this.items.findById(userId, itemId);
       if (name !== current.name) {
         await this.assertNameFree(userId, name, itemId);
         // 말로 찾을 때 쓰는 임베딩도 새 이름으로. 실패하면 비워 두고 이름 일치로 찾게 한다.
@@ -174,7 +178,6 @@ export class ItemsService {
 
       // 쉬어가기는 주기를 건드리지 않는다. 다음 차례만 그 날짜로 옮긴다.
       // 해제하면 원래 주기가 만들어내는 날짜로 되돌린다.
-      const current = await this.items.findById(userId, itemId);
       patch.next_due_on =
         input.snoozedUntil ??
         this.cadence.nextDueOn(current.last_done_on, input.cadence ?? toCadenceRule(current));
@@ -182,7 +185,7 @@ export class ItemsService {
 
     return toItem(await this.items.update(userId, itemId, patch), this.cadence, today);
   }
-  /** 같은 사람에게 같은 이름의 항목은 하나뿐이다(DB items_name_unique_per_user). */
+  /** 같은 사람이 쓰고 있는 항목 중 같은 이름은 하나뿐이다(DB items_name_unique_active). 지운 항목은 따지지 않는다. */
   private async assertNameFree(userId: string, name: string, exceptId?: string): Promise<void> {
     const taken = await this.items.findByName(userId, name);
     if (taken && taken.id !== exceptId) {
@@ -280,6 +283,9 @@ export class ItemsService {
   }
 
   async restore(userId: string, itemId: string): Promise<void> {
+    // 지운 뒤 같은 이름으로 새로 만들었으면 되살릴 수 없다.
+    const item = await this.items.findById(userId, itemId);
+    await this.assertNameFree(userId, item.name, itemId);
     await this.items.restore(userId, itemId);
   }
 

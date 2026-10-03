@@ -45,12 +45,23 @@ export class ItemsRepository {
     return (data ?? []) as ItemRow[];
   }
 
-  async findById(userId: string, itemId: string): Promise<ItemRow> {
-    const { data, error } = await this.table
-      .select(COLUMNS)
-      .eq('user_id', userId)
-      .eq('id', itemId)
-      .maybeSingle();
+  /**
+   * 쓰고 있는 항목만. 지운 항목은 없는 것으로 본다.
+   * 지운 항목도 남아 있으므로(되돌리기) 삭제 전에 받은 알림 등으로 id 가 들어올 수 있다.
+   */
+  findActiveById(userId: string, itemId: string): Promise<ItemRow> {
+    return this.findOne(userId, itemId, true);
+  }
+
+  /** 지운 항목도 포함해 찾는다. 되살리기나 방금 쓴 항목을 다시 읽을 때. */
+  findById(userId: string, itemId: string): Promise<ItemRow> {
+    return this.findOne(userId, itemId, false);
+  }
+
+  private async findOne(userId: string, itemId: string, activeOnly: boolean): Promise<ItemRow> {
+    let query = this.table.select(COLUMNS).eq('user_id', userId).eq('id', itemId);
+    if (activeOnly) query = query.eq('status', 'active');
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw error;
     if (!data) throw new NotFoundException('항목을 찾을 수 없습니다.');
@@ -62,6 +73,7 @@ export class ItemsRepository {
       .select(COLUMNS)
       .eq('user_id', userId)
       .eq('name', name)
+      .eq('status', 'active')
       .maybeSingle();
 
     if (error) throw error;
